@@ -615,13 +615,15 @@ function RelationshipInspector({
           <h3>Read both directions</h3>
           <p>
             <CrowFootKey cardinality={endpoints.target} />
-            Each <strong>{sourceName}</strong> has{" "}
-            {cardinalityLabel(endpoints.target)} <strong>{targetName}</strong>.
+            For one record in <strong>{sourceName}</strong>:{" "}
+            {cardinalityLabel(endpoints.target)} in{" "}
+            <strong>{targetName}</strong>.
           </p>
           <p>
             <CrowFootKey cardinality={endpoints.source} />
-            Each <strong>{targetName}</strong> has{" "}
-            {cardinalityLabel(endpoints.source)} <strong>{sourceName}</strong>.
+            For one record in <strong>{targetName}</strong>:{" "}
+            {cardinalityLabel(endpoints.source)} in{" "}
+            <strong>{sourceName}</strong>.
           </p>
         </div>
         {r.cardinality === "1:1" && (

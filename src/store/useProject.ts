@@ -7,7 +7,16 @@ import type {
   Specialization,
 } from "../domain/types";
 import { attribute, sampleSchema, uid } from "../domain/sample";
-import { loadProject, saveProject } from "../lib/persistence";
+import { saveProject } from "../lib/persistence";
+import {
+  loadWorkspace,
+  saveWorkspace,
+  projectRecord,
+  nextUpdatedAt,
+  workspaceKey,
+  type ProjectRecord,
+  type WorkspaceData,
+} from "../lib/workspace";
 export type Selection =
   | { kind: "entity"; id: string; attributeId?: string }
   | { kind: "relationship"; id: string; attributeId?: string }
@@ -16,6 +25,16 @@ export type Selection =
 export type OutputTab = "schema" | "sql" | "validation" | "normalization";
 interface ProjectStore {
   schema: ConceptualSchema;
+  projects: ProjectRecord[];
+  deletedIds: string[];
+  scope: string;
+  activeProjectId: string | null;
+  persistSchema: (schema: ConceptualSchema) => boolean;
+  openProject: (id: string) => boolean;
+  createProject: (schema: ConceptualSchema) => string;
+  deleteProject: (id: string) => void;
+  setWorkspace: (scope: string, data: WorkspaceData) => void;
+  acknowledgeSync: (records: ProjectRecord[], ids: string[]) => void;
   past: ConceptualSchema[];
   future: ConceptualSchema[];
   selection: Selection;
@@ -69,7 +88,16 @@ interface ProjectStore {
   ) => void;
   replaceProject: (schema: ConceptualSchema) => void;
 }
-const loaded = loadProject();
+const workspace = loadWorkspace();
+let initialSaved = true;
+// Persist the initial library immediately so starter project URLs survive a reload.
+try {
+  if (!localStorage.getItem(workspaceKey("local")))
+    initialSaved = saveWorkspace("local", workspace);
+} catch {
+  initialSaved = false;
+}
+const loaded = workspace.projects[0]?.schema;
 const getTheme = (): "light" | "dark" => {
   try {
     return localStorage.getItem("schemaforge.theme") === "dark"
@@ -81,6 +109,100 @@ const getTheme = (): "light" | "dark" => {
 };
 export const useProject = create<ProjectStore>((set, get) => ({
   schema: loaded ?? sampleSchema(),
+  projects: workspace.projects,
+  deletedIds: workspace.deletedIds,
+  scope: "local",
+  activeProjectId: workspace.projects[0]?.id ?? null,
+  persistSchema: (schema) => {
+    const { projects, activeProjectId, scope, deletedIds } = get();
+    const record = projects.find((p) => p.id === activeProjectId);
+    const next = record
+      ? projects.map((p) =>
+          p.id === activeProjectId
+            ? { ...p, schema, updatedAt: nextUpdatedAt(p.updatedAt) }
+            : p,
+        )
+      : [...projects, projectRecord(schema)];
+    const saved = saveWorkspace(scope, { projects: next, deletedIds });
+    // Retain compatibility with existing single-project backups in local mode.
+    if (scope === "local") saveProject(schema);
+    set({
+      projects: next,
+      activeProjectId: record?.id ?? next[next.length - 1].id,
+    });
+    return saved;
+  },
+  openProject: (id) => {
+    const project = get().projects.find((p) => p.id === id);
+    if (!project) return false;
+    const saved = saveWorkspace(get().scope, {
+      projects: get().projects,
+      deletedIds: get().deletedIds,
+    });
+    set({
+      activeProjectId: id,
+      schema: structuredClone(project.schema),
+      past: [],
+      future: [],
+      selection: null,
+      selectedIds: [],
+      historyKey: "",
+      historyAt: 0,
+      inspectorOpen: false,
+      mode: "diagram",
+      outputTab: "schema",
+      toast: "",
+      saved,
+    });
+    return true;
+  },
+  createProject: (schema) => {
+    const record = projectRecord(schema);
+    const projects = [...get().projects, record];
+    const saved = saveWorkspace(get().scope, {
+      projects,
+      deletedIds: get().deletedIds,
+    });
+    set({ projects });
+    get().openProject(record.id);
+    set({ saved });
+    return record.id;
+  },
+  deleteProject: (id) => {
+    const projects = get().projects.filter((p) => p.id !== id);
+    const deletedIds = [...new Set([...get().deletedIds, id])];
+    const saved = saveWorkspace(get().scope, { projects, deletedIds });
+    set({
+      projects,
+      deletedIds,
+      saved,
+      ...(get().activeProjectId === id ? { activeProjectId: null } : {}),
+    });
+  },
+  setWorkspace: (scope, data) => {
+    const saved = saveWorkspace(scope, data);
+    set({
+      ...data,
+      scope,
+      activeProjectId: null,
+      schema: sampleSchema(),
+      past: [],
+      future: [],
+      selection: null,
+      selectedIds: [],
+      inspectorOpen: false,
+      saved,
+    });
+  },
+  acknowledgeSync: (records, ids) => {
+    const synced = new Map(records.map((p) => [p.id, p.updatedAt]));
+    const projects = get().projects.map((p) =>
+      synced.get(p.id) === p.updatedAt ? { ...p, syncedAt: p.updatedAt } : p,
+    );
+    const deletedIds = get().deletedIds.filter((id) => !ids.includes(id));
+    const saved = saveWorkspace(get().scope, { projects, deletedIds });
+    set({ projects, deletedIds, saved });
+  },
   past: [],
   future: [],
   selection: loaded?.entities[0]
@@ -97,7 +219,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
   mode: "diagram",
   theme: getTheme(),
   toast: "",
-  saved: true,
+  saved: initialSaved,
   historyKey: "",
   historyAt: 0,
   inspectorOpen: false,
@@ -146,7 +268,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
       schema: next,
       past: grouped ? past : [...past.slice(-59), schema],
       future: [],
-      saved: saveProject(next),
+      saved: get().persistSchema(next),
       historyKey: key,
       historyAt: Date.now(),
     });
@@ -430,7 +552,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
       selection: null,
       selectedIds: [],
       historyKey: "",
-      saved: saveProject(next),
+      saved: get().persistSchema(next),
     });
   },
   redo: () => {
@@ -444,7 +566,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
       selection: null,
       selectedIds: [],
       historyKey: "",
-      saved: saveProject(next),
+      saved: get().persistSchema(next),
     });
   },
   checkpoint: () =>
@@ -459,7 +581,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
       const e = next.entities.find((e) => e.id === p.id);
       if (e) e.position = p.position;
     }
-    set({ schema: next, saved: saveProject(next) });
+    set({ schema: next, saved: get().persistSchema(next) });
   },
   replaceProject: (schema) => {
     get().mutate((s) =>

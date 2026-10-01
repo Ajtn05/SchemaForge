@@ -42,7 +42,11 @@ export function RelationshipEdge(props: EdgeProps<RelationshipFlowEdge>) {
     schema.entities.find((e) => e.id === r.sourceId)?.name ?? "source";
   const targetName =
     schema.entities.find((e) => e.id === r.targetId)?.name ?? "target";
-  const description = `${r.name}: each ${sourceName} relates to ${cardinalityLabel(endpoints.target)} ${targetName}; each ${targetName} relates to ${cardinalityLabel(endpoints.source)} ${sourceName}`;
+  // Vertical connectors often have only a short gap between entity cards.
+  // Put their labels beside the line so they do not cover endpoint symbols.
+  const vertical = Math.abs(sourceX - targetX) < 30;
+  const textX = labelX + (vertical ? Math.max(42, r.name.length * 3 + 14) : 0);
+  const description = `${r.name}: for one record in ${sourceName}, ${cardinalityLabel(endpoints.target)} in ${targetName}; for one record in ${targetName}, ${cardinalityLabel(endpoints.source)} in ${sourceName}`;
   return (
     <>
       <BaseEdge
@@ -74,7 +78,7 @@ export function RelationshipEdge(props: EdgeProps<RelationshipFlowEdge>) {
         <button
           className={`relationship-label nodrag nopan ${selected ? "selected" : ""}`}
           style={{
-            transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+            transform: `translate(-50%, -50%) translate(${textX}px,${labelY}px)`,
           }}
           title={description}
           aria-label={description}

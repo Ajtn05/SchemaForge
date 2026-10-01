@@ -1,18 +1,32 @@
-# SchemaForge
+# <img src="public/favicon.svg" alt="SchemaForge logo" width="40" height="40"> SchemaForge
 
 **Design your database visually. See the tables. Export the SQL.**
 
-SchemaForge is a browser-based database design workspace that connects your conceptual model to a relational schema and MySQL or PostgreSQL SQL. Build a diagram, explore how relationships become tables, and review your design before implementation—all in one workspace.
+SchemaForge is a browser-based database design app. Keep multiple projects in a local project library, model entities and relationships, inspect the resulting tables, and export MySQL or PostgreSQL SQL.
 
 No account or backend setup required. Projects save locally in your browser.
 
-![SchemaForge workspace with an editable entity diagram, attribute inspector, and live relational schema](artifacts/schemaforge-preview.jpg)
+![SchemaForge project library showing the university sample and a new-project shortcut](artifacts/schemaforge-home.jpg)
 
 [Get started](#get-started) · [Features](#features) · [Design workflow](#design-workflow) · [Development](#development)
 
-## From an idea to a database design
+## Screenshots
 
-Whether you are learning database modeling, planning an application, or explaining a schema to your team, SchemaForge makes the connection between entities, relationships, and tables visible. Start with the university sample or create a blank project and build your own model.
+### EER diagram
+
+![EER canvas showing sample entities, crow's-foot relationships, and the entity inspector](artifacts/schemaforge-diagram.jpg)
+
+### Relational schema
+
+![Diagram editor with the generated relational schema and selected entity properties](artifacts/schemaforge-preview.jpg)
+
+### Project settings
+
+![Project settings dialog with the sample project's name, description, and MySQL target](artifacts/schemaforge-project-settings.jpg)
+
+### SQL preview
+
+![Generated MySQL CREATE TABLE statements for the university sample](artifacts/schemaforge-sql.jpg)
 
 ## Features
 
@@ -36,7 +50,7 @@ Use the normalization workspace to record business dependencies and inspect the 
 
 ## Design workflow
 
-1. **Start a project.** Open the included university sample or create a blank project from the project menu.
+1. **Start a project.** The home page lists your projects. Open the included university sample, import a JSON backup, or create a blank project. Click **Workspace** in the editor to return home.
 2. **Build the model.** Add entities, edit their attributes, and drag a connection handle between entities. Select a relationship to set its cardinality and participation.
 3. **Explore the tables.** Switch to the relational schema to inspect the tables and keys generated from your model.
 4. **Review the design.** Check validation findings and declare functional dependencies in **Normalization**.
@@ -67,10 +81,28 @@ Open the URL printed by Vite, usually [http://127.0.0.1:5173](http://127.0.0.1:5
 
 ## Project storage and design scope
 
-- **Local storage:** Projects save to this browser on this device. Export JSON backups to move a project or protect it from cleared browser data. Cloud sync and collaboration are not included.
+- **Local workspace:** Each project saves independently in this browser on this device. Existing single-project data migrates into the library automatically. Export JSON backups to move projects or protect them from cleared browser data.
+- **Account workspace:** Optional Supabase email sign-in stores projects under your account, with owner-only database policies. Local projects remain separate; export/import JSON to copy one into your account workspace. Uploads are debounced and serialized. Failed uploads retain a device cache and can be retried. Cached edits use the last edited timestamp when reopening an account. Concurrent edits to the same project use the last upload; live collaboration and conflict merging are not included.
 - **SQL output:** SchemaForge generates DDL; it does not connect to a database, execute SQL, or migrate existing data. MySQL output targets 8.0.16 or later; PostgreSQL output targets 10 or later. SQL export requires a selected engine and no validation errors.
 - **Normalization:** Findings depend on the business dependencies you declare and assume atomic values. Review 1NF manually. Large candidate-key searches may leave 2NF/3NF unresolved. Suggested decompositions are advisory.
 - **Modeling:** Composite keys are supported; composite attributes are not. Some participation and subtype membership rules require application or transactional trigger enforcement, which validation identifies.
+
+## Optional email sign-in and cloud projects
+
+The app works without any environment variables in local mode. To enable an account workspace:
+
+1. Create a Supabase project and run [`supabase/schema.sql`](supabase/schema.sql) in its SQL Editor. This creates the projects table and owner-only row-level security policies.
+2. Copy `.env.example` to `.env.local`, then set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the Supabase project Connect dialog. Use the browser-safe publishable key (or legacy anon key), never a secret or service-role key.
+3. Enable email authentication. In **Authentication → URL Configuration**, set the Site URL to your production origin and allow redirect URLs for both `http://localhost:5173/` and `http://127.0.0.1:5173/`, plus the exact deployed origin ending in `/`. Add any Vercel preview origins you intend to use for sign-in.
+4. Restart Vite. Choose **Sign in with email**, then open the link sent to your inbox. The account workspace loads after sign-in. Use **Local projects** to access the device workspace at any time.
+
+For production email delivery, configure your own SMTP provider in Supabase. See the official [email sign-in guide](https://supabase.com/docs/guides/auth/passwordless-login/auth-magic-link), [redirect URL guide](https://supabase.com/docs/guides/auth/redirect-urls), and [SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp).
+
+## Deploy to Vercel
+
+Import this repository into Vercel with the **Vite** preset. The included [`vercel.json`](vercel.json) builds with `npm run build`, serves `dist`, and routes project URLs back to the SPA so `/projects/<id>` survives refresh. See [Vercel's Vite deployment guide](https://vercel.com/docs/frameworks/frontend/vite).
+
+For email sign-in, add the two `VITE_SUPABASE_*` variables to the Vercel project before building and configure the deployed origin in Supabase as described above. Without these variables, the deployed site uses local mode. Browser storage is scoped to each origin, so localhost and your deployed site have separate local libraries. Supabase holds account data; no server filesystem or Vercel database is required. Redeploy after changing build-time environment variables.
 
 ## Development
 

@@ -40,7 +40,7 @@ import { validateSchema } from "./lib/validation";
 import { generateSQL } from "./lib/sql";
 import { projectEngine, engineLabels } from "./lib/engine";
 import ProjectSettings from "./components/ProjectSettings";
-import { downloadFile, isSchema, saveProject } from "./lib/persistence";
+import { downloadFile, isSchema } from "./lib/persistence";
 import Diagram from "./components/canvas/Diagram";
 import Inspector from "./components/inspector/Inspector";
 import Output, { ModelView } from "./components/schema/Output";
@@ -48,7 +48,15 @@ import { IconButton, Menu, MenuItem, Modal } from "./components/ui/primitives";
 
 type DialogKind =
   "new" | "rename" | "reset" | "clear" | "help" | "settings" | null;
-export default function App() {
+export default function App({
+  onHome,
+  onOpenProject,
+  cloudStatus,
+}: {
+  onHome: () => void;
+  onOpenProject: (id: string) => void;
+  cloudStatus: string;
+}) {
   const store = useProject();
   const {
     schema,
@@ -122,7 +130,7 @@ export default function App() {
       } else if (modifier && e.key.toLowerCase() === "s") {
         e.preventDefault();
         notify(
-          saveProject(useProject.getState().schema)
+          useProject.getState().persistSchema(useProject.getState().schema)
             ? "Project saved on this device."
             : "Local storage is unavailable. Export a JSON backup.",
         );
@@ -184,7 +192,7 @@ export default function App() {
     try {
       const input: unknown = JSON.parse(await file.text());
       if (!isSchema(input)) throw new Error("Invalid project");
-      replaceProject(input);
+      onOpenProject(store.createProject(input));
       setTimeout(() => flow.fitView({ padding: 0.13, duration: 300 }), 100);
     } catch {
       notify(
@@ -195,10 +203,12 @@ export default function App() {
   }
   function submitDialog() {
     if (dialog === "new") {
-      replaceProject({
-        ...emptySchema(),
-        name: projectName.trim() || "Untitled project",
-      });
+      onOpenProject(
+        store.createProject({
+          ...emptySchema(),
+          name: projectName.trim() || "Untitled project",
+        }),
+      );
     } else if (dialog === "rename") {
       store.mutate((s) => {
         s.name = projectName.trim() || s.name;
@@ -233,7 +243,10 @@ export default function App() {
           <a
             className="brand"
             href="/"
-            onClick={(e) => e.preventDefault()}
+            onClick={(e) => {
+              e.preventDefault();
+              onHome();
+            }}
             aria-label="SchemaForge home"
           >
             <span className="brand-symbol">
@@ -245,20 +258,32 @@ export default function App() {
             </span>
           </a>
           <div className="header-breadcrumb">
-            <span>Workspace</span>
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                onHome();
+              }}
+            >
+              Workspace
+            </a>
             <ChevronRight size={13} />
             <button onClick={() => openDialog("settings")}>
               {schema.name}
             </button>
             <span className="local-badge">
               <HardDrive size={11} />
-              Local project
+              {store.scope === "local" ? "Local project" : "Account project"}
             </span>
           </div>
           <div className="header-actions">
             <span className={`save-status ${!saved ? "save-error" : ""}`}>
               <CheckCheck size={14} />
-              {saved ? "All changes saved" : "Save unavailable"}
+              {saved
+                ? store.scope === "local"
+                  ? "All changes saved"
+                  : cloudStatus
+                : "Save unavailable"}
             </span>
             <span className="header-divider" />
             <IconButton
@@ -340,6 +365,10 @@ export default function App() {
                     </>
                   }
                 >
+                  <MenuItem onSelect={onHome}>
+                    <FolderOpen size={15} />
+                    All projects
+                  </MenuItem>
                   <MenuItem onSelect={() => openDialog("new")}>
                     <FilePlus2 size={15} />
                     New project
@@ -862,7 +891,7 @@ export default function App() {
                   : dialog === "reset"
                     ? "This replaces your current diagram with the university sample. You can undo this action."
                     : dialog === "new"
-                      ? "Start with a blank canvas. Export your current project as JSON to keep a backup."
+                      ? "Start with a blank canvas. Your existing projects stay in your workspace."
                       : "A clear name keeps your workspace organized."
           }
         >

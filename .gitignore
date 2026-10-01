@@ -38,3 +38,12 @@ Desktop.ini
 
 # Local hosting runtime
 .sites-runtime/
+.vercel/
+
+# Supabase CLI local state (keep schema SQL and migrations)
+supabase/.temp/
+supabase/.branches/
+
+# Local UI captures (keep documentation images)
+artifacts/local/
+artifacts/schemaforge-project-home.jpg

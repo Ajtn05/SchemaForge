@@ -7,20 +7,23 @@ export function CrowFootGlyph({ minimum, maximum }: EndpointCardinality) {
   return (
     <>
       {maximum === "many" ? (
-        <path className="crow-foot-many" d="M 5 -7 L 18 0 L 5 7 M 5 0 L 18 0" />
+        <path className="crow-foot-many" d="M 3 -7 L 14 0 L 3 7 M 3 0 L 14 0" />
       ) : (
-        <path className="crow-foot-one" d="M 8 -7 V 7" />
+        <path className="crow-foot-one" d="M 5 -7 V 7" />
       )}
       {minimum === 0 ? (
         <circle
           className="crow-foot-zero"
-          cx="28"
+          cx={maximum === "many" ? 23 : 17}
           cy="0"
-          r="4"
+          r="3.5"
           fill="var(--canvas)"
         />
       ) : (
-        <path className="crow-foot-required" d="M 28 -7 V 7" />
+        <path
+          className="crow-foot-required"
+          d={maximum === "many" ? "M 23 -7 V 7" : "M 17 -7 V 7"}
+        />
       )}
     </>
   );
