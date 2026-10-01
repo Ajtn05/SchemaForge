@@ -1,4 +1,7 @@
-# <img src="public/favicon.svg" alt="SchemaForge logo" width="40" height="40"> SchemaForge
+<div align="center">
+  <img src="public/favicon.svg" alt="SchemaForge logo" width="80" height="80"> 
+  <h1>SchemaForge</h1>
+</div>
 
 **Design your database visually. See the tables. Export the SQL.**
 
