@@ -8,7 +8,7 @@ No account or backend setup required. Projects save locally in your browser.
 
 ![SchemaForge project library showing the university sample and a new-project shortcut](artifacts/schemaforge-home.jpg)
 
-[Get started](#get-started) · [Features](#features) · [Design workflow](#design-workflow) · [Development](#development)
+[Features](#features) · [Design workflow](#design-workflow) · [Handy shortcuts](#handy-shortcuts) · [Tech stack](#tech-stack)
 
 ## Screenshots
 
@@ -68,18 +68,7 @@ Use the normalization workspace to record business dependencies and inspect the 
 5. **Review the design.** Check validation findings and declare functional dependencies in **Normalization**.
 6. **Export your work.** Choose an engine in **Project settings**, resolve validation errors, and use **Export** to download SQL or a JSON project backup.
 
-## Get started
-
-Install Node.js **22 or newer (even-numbered releases)** and npm, then run these commands from the project folder:
-
-```sh
-npm ci
-npm run dev
-```
-
-Open the URL printed by Vite, usually [http://127.0.0.1:5173](http://127.0.0.1:5173).
-
-### Handy shortcuts
+## Handy shortcuts
 
 | Action                      | Shortcut                                |
 | --------------------------- | --------------------------------------- |
@@ -94,7 +83,7 @@ Open the URL printed by Vite, usually [http://127.0.0.1:5173](http://127.0.0.1:5
 ## Project storage and design scope
 
 - **Local workspace:** Each project saves independently in this browser on this device. Existing single-project data migrates into the library automatically. Export JSON backups to move projects or protect them from cleared browser data.
-- **Account workspace:** Optional Supabase email sign-in stores projects under your account, with owner-only database policies. Local projects remain separate; export/import JSON to copy one into your account workspace. Uploads are debounced and serialized. Failed uploads retain a device cache and can be retried. Cached edits use the last edited timestamp when reopening an account. Concurrent edits to the same project use the last upload; live collaboration and conflict merging are not included.
+- **Account workspace:** Optional email sign-in stores projects under your account. Local projects remain separate; export/import JSON to copy one into your account workspace. Failed uploads retain a device cache and can be retried. Concurrent edits to the same project use the last upload; live collaboration and conflict merging are not included.
 - **SQL output:** SchemaForge generates DDL; it does not connect to a database, execute SQL, or migrate existing data. MySQL output targets 8.0.16 or later; PostgreSQL output targets 10 or later. SQL export requires a selected engine and no validation errors.
 - **Normalization:** Findings depend on the business dependencies you declare and assume atomic values. Review 1NF manually. Large candidate-key searches may leave 2NF/3NF unresolved. Suggested decompositions are advisory.
 - **Validation suggestions:** Some findings explain transformations already applied to the generated schema; others recommend design changes. Selecting a finding selects the related item for review in the inspector. Suggestions do not have a one-click acceptance action.
@@ -102,38 +91,18 @@ Open the URL printed by Vite, usually [http://127.0.0.1:5173](http://127.0.0.1:5
 
 ## Optional email sign-in and cloud projects
 
-The app works without any environment variables in local mode. Email features show **Coming soon** until Supabase is configured. To enable an account workspace:
+When email sign-in is available, choose **Sign in with email** and open the link sent to your inbox. Your account workspace loads after sign-in. Use **Local projects** to access the device workspace at any time. If email features show **Coming soon**, you can continue using local projects.
 
-1. Create a Supabase project and run [`supabase/schema.sql`](supabase/schema.sql) in its SQL Editor. This creates the projects table and owner-only row-level security policies.
-2. Copy `.env.example` to `.env.local`, then set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the Supabase project Connect dialog. Use the browser-safe publishable key (or legacy anon key), never a secret or service-role key.
-3. Enable email authentication. In **Authentication → URL Configuration**, set the Site URL to your production origin and allow redirect URLs for both `http://localhost:5173/` and `http://127.0.0.1:5173/`, plus the exact deployed origin ending in `/`. Add any Vercel preview origins you intend to use for sign-in.
-4. Restart Vite. Choose **Sign in with email**, then open the link sent to your inbox. The account workspace loads after sign-in. Use **Local projects** to access the device workspace at any time.
+## Tech stack
 
-For production email delivery, configure your own SMTP provider in Supabase. See the official [email sign-in guide](https://supabase.com/docs/guides/auth/passwordless-login/auth-magic-link), [redirect URL guide](https://supabase.com/docs/guides/auth/redirect-urls), and [SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp).
-
-## Deploy to Vercel
-
-Import this repository into Vercel with the **Vite** preset. The included [`vercel.json`](vercel.json) builds with `npm run build`, serves `dist`, and routes project URLs back to the SPA so `/projects/<id>` survives refresh. See [Vercel's Vite deployment guide](https://vercel.com/docs/frameworks/frontend/vite).
-
-For email sign-in, add the two `VITE_SUPABASE_*` variables to the Vercel project before building and configure the deployed origin in Supabase as described above. Without these variables, the deployed site uses local mode. Browser storage is scoped to each origin, so localhost and your deployed site have separate local libraries. Supabase holds account data; no server filesystem or Vercel database is required. Redeploy after changing build-time environment variables.
-
-## Development
-
-Built with React, TypeScript, Vite, Tailwind CSS, XYFlow, Zustand, Lucide, and Radix UI.
-
-```sh
-npm test          # Run the unit tests
-npm run build    # Type-check and create a production build in dist/
-npm run preview  # Serve the production build locally
-```
-
-| Folder                             | Purpose                                                                          |
-| ---------------------------------- | -------------------------------------------------------------------------------- |
-| [`src/domain`](src/domain)         | Conceptual and relational models, plus the sample project                        |
-| [`src/lib`](src/lib)               | Model transformation, normalization, validation, SQL generation, and persistence |
-| [`src/store`](src/store)           | Project state, local saving, and undo/redo history                               |
-| [`src/components`](src/components) | Diagram canvas, inspector, output views, and UI primitives                       |
-| [`artifacts`](artifacts)           | Product screenshots used in this README                                          |
+| Area | Technologies |
+| ---- | ------------ |
+| Interface | React, TypeScript |
+| Build tooling | Vite |
+| Styling and UI | Tailwind CSS, Radix UI, Lucide |
+| Diagram canvas | XYFlow (React Flow) |
+| State management | Zustand |
+| Optional cloud storage and authentication | Supabase |
 
 ## Modeling reference
 
