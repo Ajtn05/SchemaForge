@@ -14,15 +14,25 @@ No account or backend setup required. Projects save locally in your browser.
 
 ### EER diagram
 
-![EER canvas showing sample entities, crow's-foot relationships, and the entity inspector](artifacts/schemaforge-diagram.jpg)
+The diagram displays associative tables alongside entities. Numeric cardinality labels are the default; the inspector can be minimized to give the canvas more room.
+
+![EER canvas showing the enrollment associative table, generated keys, and numeric relationship labels](artifacts/schemaforge-diagram.jpg)
+
+### Crow’s-foot notation
+
+Enable **Use crow’s-foot notation** in **Project settings** to replace numeric labels with endpoint symbols. This choice saves with the project and does not change the generated tables or SQL.
+
+![The same EER diagram using crow’s-foot relationship symbols](artifacts/schemaforge-crows-foot.jpg)
 
 ### Relational schema
 
-![Diagram editor with the generated relational schema and selected entity properties](artifacts/schemaforge-preview.jpg)
+![Relational schema with generated tables and selected entity properties](artifacts/schemaforge-preview.jpg)
 
 ### Project settings
 
-![Project settings dialog with the sample project's name, description, and MySQL target](artifacts/schemaforge-project-settings.jpg)
+Open settings using the button beside **Export**. The database engine shown above the canvas is a status label.
+
+![Project settings with name, description, database engine, and the crow’s-foot notation toggle](artifacts/schemaforge-project-settings.jpg)
 
 ### SQL preview
 
@@ -32,15 +42,16 @@ No account or backend setup required. Projects save locally in your browser.
 
 | Capability              | What you can do                                                                                                                                                 |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Visual modeling         | Add, arrange, and connect entities on an interactive enhanced entity–relationship (EER) canvas. Edit names, attributes, keys, and constraints in the inspector. |
-| Relationship design     | Model one-to-one, one-to-many, and many-to-many relationships. M:N relationships show an associative table with generated PK/FK columns and two one-to-many connectors on the canvas. |
+| Visual modeling         | Add, arrange, and connect entities on an interactive enhanced entity–relationship (EER) canvas. Edit names, attributes, keys, and constraints in the inspector; minimize and reopen it while keeping your selection. |
+| Relationship design     | Model one-to-one, one-to-many, and many-to-many relationships with participation and relationship attributes. Choose numeric labels or crow’s-foot symbols per project. |
+| Associative tables      | M:N relationships appear as a table with generated PK/FK columns and two one-to-many connectors. Select the table or a connector to edit the source relationship. Dragged table positions save with the project and support undo/redo. |
 | Live relational schema  | See tables, primary keys, foreign keys, and associative tables update as you edit the diagram. Composite keys and multivalued attributes are supported.         |
 | Supertypes and subtypes | Build nested inheritance hierarchies and describe disjoint or overlapping membership and total or partial completeness.                                         |
 | Normalization review    | Declare functional dependencies, inspect candidate keys, and review potential 2NF, 3NF, and BCNF violations.                                                    |
 | SQL generation          | Preview and export DDL for MySQL or PostgreSQL. Choose **No engine** to focus on conceptual and relational design.                                              |
 | Design validation       | Find modeling errors, engine-specific issues, and constraints that need application-level enforcement before exporting SQL.                                     |
 | Local projects          | Autosave in your browser and export or import portable `.schemaforge.json` backups.                                                                             |
-| Everyday editing        | Search entities and attributes, undo and redo changes, duplicate entities, minimize the inspector to expand the canvas, and switch between light and dark themes. |
+| Everyday editing        | Search entities and attributes, undo and redo changes, duplicate entities, scroll view tabs when space is limited, and switch between light and dark themes. |
 
 ### Understand the rules behind your tables
 
@@ -51,11 +62,11 @@ Use the normalization workspace to record business dependencies and inspect the 
 ## Design workflow
 
 1. **Start a project.** The home page lists your projects. Open the included university sample, import a JSON backup, or create a blank project. Click **Workspace** in the editor to return home.
-2. **Build the model.** Add entities, edit their attributes, and drag a connection handle between entities. Select a relationship to set its cardinality and participation.
-3. **Explore the tables.** Switch to the relational schema to inspect the tables and keys generated from your model.
-   Diagrams use **1:1 / 1:N / M:N** labels by default. Enable **Use crow’s-foot notation** in **Project settings** to use relationship symbols instead.
-4. **Review the design.** Check validation findings and declare functional dependencies in **Normalization**.
-5. **Export your work.** Choose an engine in **Project settings**, resolve validation errors, and use **Export** to download SQL or a JSON project backup.
+2. **Build the model.** Add entities, edit their attributes, and drag a connection handle between entities. Select a relationship to set its cardinality and participation. An M:N relationship appears as an associative table connected to both participants by 1:N relationships.
+3. **Adjust the view.** Use the settings button beside **Export** to choose the SQL target and relationship notation. Numeric labels are the default; enable **Use crow’s-foot notation** for symbols. Minimize the inspector from its header or the canvas toolbar, then use **Show inspector** to reopen it.
+4. **Explore the tables.** Switch to **Relational schema** to inspect generated tables and keys. Associative tables update from their source relationships; they are not additional entities you need to create manually.
+5. **Review the design.** Check validation findings and declare functional dependencies in **Normalization**.
+6. **Export your work.** Choose an engine in **Project settings**, resolve validation errors, and use **Export** to download SQL or a JSON project backup.
 
 ## Get started
 
@@ -86,11 +97,12 @@ Open the URL printed by Vite, usually [http://127.0.0.1:5173](http://127.0.0.1:5
 - **Account workspace:** Optional Supabase email sign-in stores projects under your account, with owner-only database policies. Local projects remain separate; export/import JSON to copy one into your account workspace. Uploads are debounced and serialized. Failed uploads retain a device cache and can be retried. Cached edits use the last edited timestamp when reopening an account. Concurrent edits to the same project use the last upload; live collaboration and conflict merging are not included.
 - **SQL output:** SchemaForge generates DDL; it does not connect to a database, execute SQL, or migrate existing data. MySQL output targets 8.0.16 or later; PostgreSQL output targets 10 or later. SQL export requires a selected engine and no validation errors.
 - **Normalization:** Findings depend on the business dependencies you declare and assume atomic values. Review 1NF manually. Large candidate-key searches may leave 2NF/3NF unresolved. Suggested decompositions are advisory.
+- **Validation suggestions:** Some findings explain transformations already applied to the generated schema; others recommend design changes. Selecting a finding selects the related item for review in the inspector. Suggestions do not have a one-click acceptance action.
 - **Modeling:** Composite keys are supported; composite attributes are not. Some participation and subtype membership rules require application or transactional trigger enforcement, which validation identifies.
 
 ## Optional email sign-in and cloud projects
 
-The app works without any environment variables in local mode. To enable an account workspace:
+The app works without any environment variables in local mode. Email features show **Coming soon** until Supabase is configured. To enable an account workspace:
 
 1. Create a Supabase project and run [`supabase/schema.sql`](supabase/schema.sql) in its SQL Editor. This creates the projects table and owner-only row-level security policies.
 2. Copy `.env.example` to `.env.local`, then set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` from the Supabase project Connect dialog. Use the browser-safe publishable key (or legacy anon key), never a secret or service-role key.
