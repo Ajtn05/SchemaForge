@@ -47,6 +47,7 @@ interface ProjectStore {
   historyKey: string;
   historyAt: number;
   inspectorOpen: boolean;
+  inspectorCollapsed: boolean;
   select: (selection: Selection) => void;
   selectMany: (ids: string[]) => void;
   setTab: (tab: OutputTab) => void;
@@ -54,6 +55,7 @@ interface ProjectStore {
   notify: (message: string) => void;
   toggleTheme: () => void;
   setInspectorOpen: (open: boolean) => void;
+  setInspectorCollapsed: (collapsed: boolean) => void;
   mutate: (fn: (s: ConceptualSchema) => void, key?: string) => void;
   addEntity: (position?: Entity["position"]) => string;
   updateEntity: (id: string, changes: Partial<Entity>) => void;
@@ -83,8 +85,12 @@ interface ProjectStore {
   undo: () => void;
   redo: () => void;
   checkpoint: () => void;
-  moveEntities: (
-    positions: { id: string; position: Entity["position"] }[],
+  moveDiagramNodes: (
+    positions: {
+      kind: "entity" | "relationship";
+      id: string;
+      position: Entity["position"];
+    }[],
   ) => void;
   replaceProject: (schema: ConceptualSchema) => void;
 }
@@ -223,6 +229,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
   historyKey: "",
   historyAt: 0,
   inspectorOpen: false,
+  inspectorCollapsed: false,
   select: (selection) =>
     set({
       selection,
@@ -241,6 +248,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
     set({ selectedIds, selection, inspectorOpen: !!selection });
   },
   setInspectorOpen: (inspectorOpen) => set({ inspectorOpen }),
+  setInspectorCollapsed: (inspectorCollapsed) => set({ inspectorCollapsed }),
   setTab: (outputTab) => set({ outputTab }),
   setMode: (mode) => set({ mode }),
   notify: (toast) => {
@@ -575,11 +583,16 @@ export const useProject = create<ProjectStore>((set, get) => ({
       future: [],
       historyKey: "",
     }),
-  moveEntities: (positions) => {
+  moveDiagramNodes: (positions) => {
     const next = structuredClone(get().schema);
     for (const p of positions) {
-      const e = next.entities.find((e) => e.id === p.id);
-      if (e) e.position = p.position;
+      if (p.kind === "entity") {
+        const e = next.entities.find((e) => e.id === p.id);
+        if (e) e.position = p.position;
+      } else {
+        const r = next.relationships.find((r) => r.id === p.id);
+        if (r?.cardinality === "M:N") r.associativePosition = p.position;
+      }
     }
     set({ schema: next, saved: get().persistSchema(next) });
   },
@@ -589,6 +602,7 @@ export const useProject = create<ProjectStore>((set, get) => ({
         s,
         {
           engine: undefined,
+          relationshipNotation: undefined,
           specializations: undefined,
           functionalDependencies: undefined,
         },

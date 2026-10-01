@@ -10,7 +10,7 @@ import { useProject } from "../../store/useProject";
 import { cardinalityLabel, relationshipEndpoints } from "../../lib/cardinality";
 import { CrowFootEndpoint } from "./CrowFoot";
 export type RelationshipFlowEdge = Edge<
-  { relationship: Relationship },
+  { relationship: Relationship; sourceName?: string; targetName?: string; hideLabel?: boolean },
   "relationship"
 >;
 export function RelationshipEdge(props: EdgeProps<RelationshipFlowEdge>) {
@@ -37,15 +37,17 @@ export function RelationshipEdge(props: EdgeProps<RelationshipFlowEdge>) {
   });
   const r = data!.relationship;
   const { select, schema } = useProject();
+  const crowFoot = schema.relationshipNotation === "crow-foot";
   const endpoints = relationshipEndpoints(r);
   const sourceName =
-    schema.entities.find((e) => e.id === r.sourceId)?.name ?? "source";
+    data?.sourceName ?? schema.entities.find((e) => e.id === r.sourceId)?.name ?? "source";
   const targetName =
-    schema.entities.find((e) => e.id === r.targetId)?.name ?? "target";
+    data?.targetName ?? schema.entities.find((e) => e.id === r.targetId)?.name ?? "target";
   // Vertical connectors often have only a short gap between entity cards.
   // Put their labels beside the line so they do not cover endpoint symbols.
   const vertical = Math.abs(sourceX - targetX) < 30;
-  const textX = labelX + (vertical ? Math.max(42, r.name.length * 3 + 14) : 0);
+  const labelLength = data?.hideLabel ? r.cardinality.length : r.name.length;
+  const textX = labelX + (vertical ? Math.max(32, labelLength * 3 + 14) : 0);
   const description = `${r.name}: for one record in ${sourceName}, ${cardinalityLabel(endpoints.target)} in ${targetName}; for one record in ${targetName}, ${cardinalityLabel(endpoints.source)} in ${sourceName}`;
   return (
     <>
@@ -58,23 +60,23 @@ export function RelationshipEdge(props: EdgeProps<RelationshipFlowEdge>) {
         }}
         interactionWidth={24}
       />
-      <CrowFootEndpoint
+      {crowFoot && <CrowFootEndpoint
         x={sourceX}
         y={sourceY}
         position={sourcePosition}
         cardinality={endpoints.source}
         selected={selected}
         side="source"
-      />
-      <CrowFootEndpoint
+      />}
+      {crowFoot && <CrowFootEndpoint
         x={targetX}
         y={targetY}
         position={targetPosition}
         cardinality={endpoints.target}
         selected={selected}
         side="target"
-      />
-      <EdgeLabelRenderer>
+      />}
+      {(!data?.hideLabel || !crowFoot) && <EdgeLabelRenderer>
         <button
           className={`relationship-label nodrag nopan ${selected ? "selected" : ""}`}
           style={{
@@ -82,11 +84,12 @@ export function RelationshipEdge(props: EdgeProps<RelationshipFlowEdge>) {
           }}
           title={description}
           aria-label={description}
-          onClick={() => select({ kind: "relationship", id })}
+          onClick={() => select({ kind: "relationship", id: r.id })}
         >
-          {r.name}
+          {!data?.hideLabel && r.name}
+          {!crowFoot && <span className="relationship-cardinality">{r.cardinality}</span>}
         </button>
-      </EdgeLabelRenderer>
+      </EdgeLabelRenderer>}
     </>
   );
 }

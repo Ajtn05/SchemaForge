@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -21,20 +21,17 @@ import {
   GitBranch,
   Scan,
   LayoutGrid,
-  Info,
 } from "lucide-react";
 import { useProject } from "../../store/useProject";
 import { EntityNode, type EntityFlowNode } from "./EntityNode";
+import { AssociativeNode, type AssociativeFlowNode } from "./AssociativeNode";
 import { SpecializationEdge } from "./SpecializationEdge";
 import { RelationshipEdge } from "./RelationshipEdge";
 import { toRelational } from "../../lib/transform";
-import { CrowFootKey } from "./CrowFoot";
-import {
-  cardinalityLabel,
-  type EndpointCardinality,
-} from "../../lib/cardinality";
+import { associativeTableNodes } from "../../lib/diagram";
 import { IconButton } from "../ui/primitives";
-const nodeTypes = { entity: EntityNode };
+type DiagramNode = EntityFlowNode | AssociativeFlowNode;
+const nodeTypes = { entity: EntityNode, associative: AssociativeNode };
 const edgeTypes = {
   relationship: RelationshipEdge,
   specialization: SpecializationEdge,
@@ -47,23 +44,38 @@ export default function Diagram() {
     select,
     selectMany,
     connect,
-    moveEntities,
+    moveDiagramNodes,
     checkpoint,
     addEntity,
     mutate,
   } = useProject();
   const [tool, setTool] = useState<"select" | "pan">("select");
   const [minimap, setMinimap] = useState(true);
-  const [legendOpen, setLegendOpen] = useState(false);
+  const [measurements, setMeasurements] = useState<Map<string, { width: number; height: number }>>(() => new Map());
   const flow = useReactFlow();
   const { zoom } = useViewport();
   const relational = useMemo(() => toRelational(schema), [schema]);
-  const nodes = useMemo<EntityFlowNode[]>(
-    () =>
-      schema.entities.map((e) => ({
+  const associative = useMemo(() => associativeTableNodes(schema, relational), [schema, relational]);
+  const associativeKey = JSON.stringify(associative.map((n) => n.id));
+  const previousAssociativeKey = useRef(associativeKey);
+  useEffect(() => {
+    const previous = new Set<string>(JSON.parse(previousAssociativeKey.current));
+    previousAssociativeKey.current = associativeKey;
+    const added = (JSON.parse(associativeKey) as string[]).some((id) => !previous.has(id));
+    if (!added) return;
+    // Include a newly generated table after React Flow has measured its node.
+    const timer = setTimeout(() => {
+      flow.fitView({ padding: 0.13, duration: 300, maxZoom: 1 });
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [associativeKey, flow]);
+  const nodes = useMemo<DiagramNode[]>(
+    () => [
+      ...schema.entities.map((e): EntityFlowNode => ({
         id: e.id,
         type: "entity",
         position: e.position,
+        measured: measurements.get(e.id),
         data: {
           entity: e,
           inheritedKeys:
@@ -73,11 +85,19 @@ export default function Diagram() {
         },
         selected: selectedIds.includes(e.id),
       })),
-    [schema.entities, selection, selectedIds, relational],
+      ...associative.map((n): AssociativeFlowNode => ({
+        id: n.id, type: "associative", position: n.position,
+        measured: measurements.get(n.id),
+        data: { relationship: n.relationship, table: n.table },
+        selected: selection?.kind === "relationship" && selection.id === n.relationship.id,
+        connectable: false,
+      })),
+    ],
+    [schema.entities, selection, selectedIds, relational, associative, measurements],
   );
   const edges = useMemo(
     () => [
-      ...schema.relationships.map((r) => ({
+      ...schema.relationships.filter((r) => r.cardinality !== "M:N").map((r) => ({
         id: r.id,
         type: "relationship",
         source: r.sourceId,
@@ -87,6 +107,14 @@ export default function Diagram() {
         data: { relationship: r },
         selected: selection?.kind === "relationship" && selection.id === r.id,
       })),
+      ...associative.flatMap((n) => n.connections.map((c) => ({
+        id: c.id, type: "relationship", source: c.source, target: c.target,
+        sourceHandle: c.sourceHandle, targetHandle: c.targetHandle,
+        data: { relationship: c.relationship,
+          sourceName: c.sourceName, targetName: c.targetName, hideLabel: true },
+        ariaLabel: `${c.sourceName} to ${c.targetName}`,
+        selected: selection?.kind === "relationship" && selection.id === n.relationship.id,
+      }))),
       ...(schema.specializations ?? []).flatMap((g) =>
         g.subtypeIds.map((id) => ({
           id: `isa-${g.id}-${id}`,
@@ -101,15 +129,33 @@ export default function Diagram() {
         })),
       ),
     ],
-    [schema.relationships, schema.specializations, selection],
+    [schema.relationships, schema.specializations, selection, associative],
   );
-  const changes = (changes: NodeChange<EntityFlowNode>[]) => {
-    const positions = changes.flatMap((c) =>
-      c.type === "position" && c.position
-        ? [{ id: c.id, position: c.position }]
-        : [],
-    );
-    if (positions.length) moveEntities(positions);
+  const nodeSelection = (node: DiagramNode) => node.type === "associative"
+    ? { kind: "relationship" as const, id: node.data.relationship.id }
+    : { kind: "entity" as const, id: node.id };
+  const changes = (changes: NodeChange<DiagramNode>[]) => {
+    // Preserve measured dimensions when controlled nodes are rebuilt after an edit.
+    if (changes.some((c) => c.type === "dimensions" && c.dimensions)) {
+      setMeasurements((previous) => {
+        const next = new Map(previous);
+        let changed = false;
+        for (const c of changes) {
+          if (c.type !== "dimensions" || !c.dimensions) continue;
+          const size = previous.get(c.id);
+          if (size?.width === c.dimensions.width && size?.height === c.dimensions.height) continue;
+          next.set(c.id, c.dimensions);
+          changed = true;
+        }
+        return changed ? next : previous;
+      });
+    }
+    const positions = changes.flatMap((c) => {
+      if (c.type !== "position" || !c.position) return [];
+      const node = nodes.find((n) => n.id === c.id);
+      return node ? [{ ...nodeSelection(node), position: c.position }] : [];
+    });
+    if (positions.length) moveDiagramNodes(positions);
   };
   function addCentered() {
     const el = document.querySelector(".diagram");
@@ -128,11 +174,12 @@ export default function Diagram() {
     );
   }
   function arrange() {
-    mutate((s) =>
+    mutate((s) => {
       s.entities.forEach((e, i) => {
         e.position = { x: 60 + (i % 2) * 390, y: 45 + Math.floor(i / 2) * 330 };
-      }),
-    );
+      });
+      s.relationships.forEach((r) => { r.associativePosition = undefined; });
+    });
     setTimeout(
       () => flow.fitView({ padding: 0.13, duration: 300, maxZoom: 1 }),
       50,
@@ -158,12 +205,12 @@ export default function Diagram() {
         onNodesChange={changes}
         onNodeDragStart={(_, node) => {
           if (!useProject.getState().selectedIds.includes(node.id))
-            select({ kind: "entity", id: node.id });
+            select(nodeSelection(node));
           checkpoint();
         }}
         onNodeClick={(event, node) => {
-          if (!event.shiftKey) {
-            select({ kind: "entity", id: node.id });
+          if (!event.shiftKey || node.type === "associative") {
+            select(nodeSelection(node));
             return;
           }
           const ids = useProject.getState().selectedIds;
@@ -181,16 +228,17 @@ export default function Diagram() {
           select(
             group
               ? { kind: "specialization", id: group.id }
-              : { kind: "relationship", id: edge.id },
+              : { kind: "relationship", id: "relationship" in edge.data! ? edge.data.relationship.id : edge.id },
           );
         }}
         onPaneClick={() => select(null)}
-        onConnect={(c) =>
+        onConnect={(c) => {
+          if (!schema.entities.some((e) => e.id === c.source) || !schema.entities.some((e) => e.id === c.target)) return;
           connect(c.source, c.target, {
             sourceHandle: c.sourceHandle ?? undefined,
             targetHandle: c.targetHandle ?? undefined,
-          })
-        }
+          });
+        }}
         connectionMode={ConnectionMode.Loose}
         fitView
         fitViewOptions={{ padding: 0.13, maxZoom: 1 }}
@@ -214,43 +262,6 @@ export default function Diagram() {
           size={1.2}
           color="var(--dot)"
         />
-        <Panel position="top-left">
-          <div className="canvas-tag">
-            <span className="live-dot" />
-            CONCEPTUAL MODEL
-            <span className="canvas-tag-separator" />
-            Editable
-          </div>
-        </Panel>
-        <Panel position="top-right" className="notation-panel">
-          <button
-            className="notation-trigger"
-            aria-expanded={legendOpen}
-            onClick={() => setLegendOpen((open) => !open)}
-          >
-            <Info size={13} />
-            Crow’s foot
-          </button>
-          {legendOpen && (
-            <div className="notation-legend">
-              <strong>Read the end next to the related entity</strong>
-              {(
-                [
-                  { minimum: 0, maximum: 1 },
-                  { minimum: 1, maximum: 1 },
-                  { minimum: 0, maximum: "many" },
-                  { minimum: 1, maximum: "many" },
-                ] as EndpointCardinality[]
-              ).map((c) => (
-                <div key={`${c.minimum}-${c.maximum}`}>
-                  <CrowFootKey cardinality={c} />
-                  <span>{cardinalityLabel(c)}</span>
-                </div>
-              ))}
-              <p>Circle = optional · bar = one · fork = many</p>
-            </div>
-          )}
-        </Panel>
         {schema.entities.length === 0 && (
           <Panel position="top-center" className="empty-diagram">
             <span className="empty-icon">

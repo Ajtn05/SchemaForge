@@ -16,6 +16,8 @@ import {
   ShieldCheck,
   CircleHelp,
   PanelLeftClose,
+  PanelRightClose,
+  PanelRightOpen,
   Sun,
   Moon,
   Braces,
@@ -26,6 +28,7 @@ import {
   Keyboard,
   X,
   Sparkles,
+  ListTree,
   Link2,
   CircleCheck,
   AlertTriangle,
@@ -90,9 +93,29 @@ export default function App({
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
+  const viewTabs = useRef<HTMLDivElement>(null);
   const issues = useMemo(() => validateSchema(schema), [schema]);
   const errors = issues.filter((i) => i.severity === "error");
   const relational = useMemo(() => toRelational(schema), [schema]);
+  useEffect(() => {
+    const tabs = viewTabs.current;
+    if (!tabs) return;
+    const revealActiveTab = () => {
+      const active = tabs.querySelector<HTMLButtonElement>("button.active");
+      if (!active) return;
+      const tabBounds = active.getBoundingClientRect();
+      const visibleBounds = tabs.getBoundingClientRect();
+      if (tabBounds.left < visibleBounds.left) {
+        tabs.scrollLeft -= Math.ceil(visibleBounds.left - tabBounds.left);
+      } else if (tabBounds.right > visibleBounds.right) {
+        tabs.scrollLeft += Math.ceil(tabBounds.right - visibleBounds.right);
+      }
+    };
+    revealActiveTab();
+    const resize = new ResizeObserver(revealActiveTab);
+    resize.observe(tabs);
+    return () => resize.disconnect();
+  }, [mode]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
@@ -699,18 +722,16 @@ export default function App({
                   <p>Good databases start with a clear picture.</p>
                 </div>
               </div>
-              <button
-                className="dialect-select"
-                onClick={() => openDialog("settings")}
-                aria-label="Change database engine"
+              <span
+                className="engine-status"
+                aria-label={`Database engine: ${engineLabels[engine]}`}
               >
-                <Settings2 size={13} />
                 {engineLabels[engine]}
                 {engine !== "none" && <span className="tag">DDL</span>}
-              </button>
+              </span>
             </div>
             <div className="workspace-viewbar">
-              <div className="view-tabs">
+              <div className="view-tabs" ref={viewTabs}>
                 <button
                   className={mode === "diagram" ? "active" : ""}
                   onClick={() => setMode("diagram")}
@@ -729,7 +750,7 @@ export default function App({
                   className={mode === "normalization" ? "active" : ""}
                   onClick={() => setMode("normalization")}
                 >
-                  <Sparkles size={15} />
+                  <ListTree size={15} />
                   Normalization
                 </button>
                 <button
@@ -741,11 +762,24 @@ export default function App({
                 </button>
               </div>
               <div className="viewbar-actions">
+                <span className="desktop-inspector-toggle">
+                  <IconButton
+                    label={store.inspectorCollapsed ? "Show inspector" : "Minimize inspector"}
+                    aria-expanded={!store.inspectorCollapsed}
+                    aria-controls="properties-inspector"
+                    onClick={() => store.setInspectorCollapsed(!store.inspectorCollapsed)}
+                  >
+                    {store.inspectorCollapsed ? <PanelRightOpen size={16} /> : <PanelRightClose size={16} />}
+                  </IconButton>
+                </span>
                 <button
                   className="mobile-inspector-toggle button small"
+                  aria-label={store.inspectorOpen ? "Close inspector" : "Open inspector"}
+                  aria-expanded={store.inspectorOpen}
+                  aria-controls="properties-inspector"
                   onClick={() => store.setInspectorOpen(!store.inspectorOpen)}
                 >
-                  <Table2 size={14} />
+                  <PanelRightOpen size={14} />
                   Properties
                 </button>
                 {mode === "diagram" ? (
@@ -883,7 +917,7 @@ export default function App({
           }
           description={
             dialog === "settings"
-              ? "Configure your project and its SQL target."
+              ? "Configure your project, diagram, and SQL target."
               : dialog === "help"
                 ? "A few shortcuts for a faster design workflow."
                 : dialog === "clear"

@@ -14,6 +14,7 @@ import {
   CircleCheck,
   Link2,
   Layers3,
+  PanelRightClose,
 } from "lucide-react";
 import { useProject } from "../../store/useProject";
 import type { Attribute, Entity, Relationship } from "../../domain/types";
@@ -518,7 +519,7 @@ function RelationshipInspector({
         </span>
         <div>
           <h2>{r.name}</h2>
-          <p>Conceptual relationship</p>
+          <p>{r.cardinality === "M:N" ? "Associative table · M:N relationship" : "Conceptual relationship"}</p>
         </div>
       </div>
       <div className="inspector-section">
@@ -614,13 +615,13 @@ function RelationshipInspector({
         <div className="relationship-reading">
           <h3>Read both directions</h3>
           <p>
-            <CrowFootKey cardinality={endpoints.target} />
+            {schema.relationshipNotation === "crow-foot" && <CrowFootKey cardinality={endpoints.target} />}
             For one record in <strong>{sourceName}</strong>:{" "}
             {cardinalityLabel(endpoints.target)} in{" "}
             <strong>{targetName}</strong>.
           </p>
           <p>
-            <CrowFootKey cardinality={endpoints.source} />
+            {schema.relationshipNotation === "crow-foot" && <CrowFootKey cardinality={endpoints.source} />}
             For one record in <strong>{targetName}</strong>:{" "}
             {cardinalityLabel(endpoints.source)} in{" "}
             <strong>{sourceName}</strong>.
@@ -658,7 +659,7 @@ function RelationshipInspector({
           <Info size={15} />
           <p>
             {r.cardinality === "M:N"
-              ? `An associative table named ${r.name} will link these entities using a composite primary key.`
+              ? `The ${r.name} associative table links these entities in the diagram and relational schema. Its foreign keys form a composite primary key, together with any relationship attributes you mark as keys.`
               : side
                 ? `The foreign key will be added to ${schema.entities.find((e) => e.id === owner)?.name} in the relational model.${r.cardinality === "1:1" ? " A UNIQUE constraint preserves one-to-one cardinality." : ""}`
                 : "Choose foreign key placement to resolve this relationship."}
@@ -673,7 +674,7 @@ function RelationshipInspector({
   );
 }
 export default function Inspector() {
-  const { schema, selection, select, inspectorOpen, setInspectorOpen } =
+  const { schema, selection, select, inspectorOpen, setInspectorOpen, inspectorCollapsed, setInspectorCollapsed } =
     useProject();
   const entity =
     selection?.kind === "entity"
@@ -692,12 +693,17 @@ export default function Inspector() {
         aria-label="Close mobile inspector"
         onClick={() => setInspectorOpen(false)}
       />
-      <aside className={`inspector ${inspectorOpen ? "mobile-open" : ""}`}>
+      <aside id="properties-inspector" aria-label="Properties inspector" className={`inspector ${inspectorOpen ? "mobile-open" : ""} ${inspectorCollapsed ? "collapsed" : ""}`}>
         <div className="inspector-top">
           <span>INSPECTOR</span>
-          <IconButton label="Clear selection" onClick={() => select(null)}>
-            <X size={15} />
-          </IconButton>
+          <div className="inspector-top-actions">
+            <IconButton label="Clear selection" onClick={() => select(null)}>
+              <X size={15} />
+            </IconButton>
+            <IconButton label="Minimize inspector" onClick={() => { setInspectorCollapsed(true); setInspectorOpen(false); }}>
+              <PanelRightClose size={15} />
+            </IconButton>
+          </div>
         </div>
         <div className="inspector-scroll">
           {attr && owner ? (

@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useProject } from "./useProject";
 import { emptySchema, sampleSchema } from "../domain/sample";
-import { loadProject, STORAGE_KEY } from "../lib/persistence";
+import { isSchema, loadProject, STORAGE_KEY } from "../lib/persistence";
 import { toRelational } from "../lib/transform";
+import { associativeTableNodes } from "../lib/diagram";
 const data = new Map<string, string>();
 vi.stubGlobal("localStorage", {
   getItem: (key: string) => data.get(key) ?? null,
@@ -23,6 +24,30 @@ beforeEach(() => {
   });
 });
 describe("project editing, history, and persistence", () => {
+  it("persists associative table movement as one undoable diagram edit", () => {
+    useProject.getState().replaceProject(sampleSchema());
+    useProject.getState().checkpoint();
+    useProject.getState().moveDiagramNodes([
+      { kind: "entity", id: "students", position: { x: 100, y: 80 } },
+      { kind: "relationship", id: "enrollment", position: { x: 780, y: 60 } },
+    ]);
+    expect(loadProject()?.relationships[0].associativePosition).toEqual({ x: 780, y: 60 });
+    useProject.getState().undo();
+    expect(useProject.getState().schema.entities[0].position).toEqual({ x: 60, y: 45 });
+    expect(useProject.getState().schema.relationships[0].associativePosition).toBeUndefined();
+    useProject.getState().redo();
+    const schema = useProject.getState().schema;
+    expect(associativeTableNodes(schema, toRelational(schema))[0].position).toEqual({ x: 780, y: 60 });
+  });
+  it("updates the diagram topology through relationship edits and undo", () => {
+    useProject.getState().replaceProject(sampleSchema());
+    useProject.getState().updateRelationship("enrollment", { cardinality: "1:N" });
+    let schema = useProject.getState().schema;
+    expect(associativeTableNodes(schema, toRelational(schema))).toEqual([]);
+    useProject.getState().undo();
+    schema = useProject.getState().schema;
+    expect(associativeTableNodes(schema, toRelational(schema))).toHaveLength(1);
+  });
   it("creates and persists entities and attributes", () => {
     const id = useProject.getState().addEntity();
     useProject.getState().updateEntity(id, { name: "accounts" });
@@ -223,6 +248,7 @@ describe("hierarchy and normalization project editing", () => {
     const id = useProject.getState().addEntity();
     useProject.getState().addSubtype(id);
     useProject.getState().mutate((s) => {
+      s.relationshipNotation = "crow-foot";
       s.functionalDependencies = [
         { id: "fd", tableId: id, determinantIds: ["a"], dependentIds: ["b"] },
       ];
@@ -230,13 +256,28 @@ describe("hierarchy and normalization project editing", () => {
     useProject.getState().replaceProject(sampleSchema());
     expect(useProject.getState().schema.specializations).toBeUndefined();
     expect(useProject.getState().schema.functionalDependencies).toBeUndefined();
+    expect(useProject.getState().schema.relationshipNotation).toBeUndefined();
     useProject.getState().undo();
     expect(useProject.getState().schema.specializations).toHaveLength(1);
     expect(useProject.getState().schema.functionalDependencies).toHaveLength(1);
+    expect(loadProject()?.relationshipNotation).toBe("crow-foot");
   });
 });
 
 describe("project engine settings", () => {
+  it("persists notation independently of the generated schema and restores it with undo", () => {
+    useProject.getState().replaceProject(sampleSchema());
+    const relational = toRelational(useProject.getState().schema);
+    useProject.getState().mutate((s) => { s.relationshipNotation = "crow-foot"; });
+    expect(loadProject()?.relationshipNotation).toBe("crow-foot");
+    expect(toRelational(useProject.getState().schema)).toEqual(relational);
+    useProject.getState().undo();
+    expect(loadProject()?.relationshipNotation).toBeUndefined();
+    useProject.getState().redo();
+    expect(loadProject()?.relationshipNotation).toBe("crow-foot");
+    expect(isSchema({ ...sampleSchema(), relationshipNotation: "cardinality" })).toBe(true);
+    expect(isSchema({ ...sampleSchema(), relationshipNotation: "invalid" })).toBe(false);
+  });
   it("persists settings atomically and restores the engine with undo/redo", () => {
     useProject.getState().mutate((s) => {
       s.name = "Postgres project";

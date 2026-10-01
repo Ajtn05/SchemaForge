@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
+  ListTree,
   KeyRound,
   Link2,
   CircleCheck,
@@ -366,7 +367,7 @@ export default function Output({
     ["schema", "Relational schema", Table2, relations.tables.length],
     ["sql", "Generated SQL", Braces],
     ["validation", "Validation", ShieldCheck, issues.length],
-    ["normalization", "Normalization", Sparkles],
+    ["normalization", "Normalization", ListTree],
   ];
   return (
     <section className={`output-panel ${collapsed ? "collapsed" : ""}`}>

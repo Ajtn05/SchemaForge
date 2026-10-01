@@ -33,14 +33,14 @@ No account or backend setup required. Projects save locally in your browser.
 | Capability              | What you can do                                                                                                                                                 |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Visual modeling         | Add, arrange, and connect entities on an interactive enhanced entity–relationship (EER) canvas. Edit names, attributes, keys, and constraints in the inspector. |
-| Relationship design     | Model one-to-one, one-to-many, and many-to-many relationships with cardinality, participation, and relationship attributes.                                     |
+| Relationship design     | Model one-to-one, one-to-many, and many-to-many relationships. M:N relationships show an associative table with generated PK/FK columns and two one-to-many connectors on the canvas. |
 | Live relational schema  | See tables, primary keys, foreign keys, and associative tables update as you edit the diagram. Composite keys and multivalued attributes are supported.         |
 | Supertypes and subtypes | Build nested inheritance hierarchies and describe disjoint or overlapping membership and total or partial completeness.                                         |
 | Normalization review    | Declare functional dependencies, inspect candidate keys, and review potential 2NF, 3NF, and BCNF violations.                                                    |
 | SQL generation          | Preview and export DDL for MySQL or PostgreSQL. Choose **No engine** to focus on conceptual and relational design.                                              |
 | Design validation       | Find modeling errors, engine-specific issues, and constraints that need application-level enforcement before exporting SQL.                                     |
 | Local projects          | Autosave in your browser and export or import portable `.schemaforge.json` backups.                                                                             |
-| Everyday editing        | Search entities and attributes, undo and redo changes, duplicate entities, and switch between light and dark themes.                                            |
+| Everyday editing        | Search entities and attributes, undo and redo changes, duplicate entities, minimize the inspector to expand the canvas, and switch between light and dark themes. |
 
 ### Understand the rules behind your tables
 
@@ -53,6 +53,7 @@ Use the normalization workspace to record business dependencies and inspect the 
 1. **Start a project.** The home page lists your projects. Open the included university sample, import a JSON backup, or create a blank project. Click **Workspace** in the editor to return home.
 2. **Build the model.** Add entities, edit their attributes, and drag a connection handle between entities. Select a relationship to set its cardinality and participation.
 3. **Explore the tables.** Switch to the relational schema to inspect the tables and keys generated from your model.
+   Diagrams use **1:1 / 1:N / M:N** labels by default. Enable **Use crow’s-foot notation** in **Project settings** to use relationship symbols instead.
 4. **Review the design.** Check validation findings and declare functional dependencies in **Normalization**.
 5. **Export your work.** Choose an engine in **Project settings**, resolve validation errors, and use **Export** to download SQL or a JSON project backup.
 

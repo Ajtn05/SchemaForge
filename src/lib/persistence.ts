@@ -30,6 +30,8 @@ export function isSchema(input: unknown): input is ConceptualSchema {
     s.version !== 1 ||
     (s.engine !== undefined &&
       !["none", "mysql", "postgresql"].includes(s.engine)) ||
+    (s.relationshipNotation !== undefined &&
+      !["cardinality", "crow-foot"].includes(s.relationshipNotation)) ||
     typeof s.name !== "string" ||
     typeof s.description !== "string" ||
     !Array.isArray(s.entities) ||
@@ -106,6 +108,10 @@ export function isSchema(input: unknown): input is ConceptualSchema {
       ["optional", "mandatory"].includes(r.sourceParticipation) &&
       ["optional", "mandatory"].includes(r.targetParticipation) &&
       (r.fkSide === undefined || ["source", "target"].includes(r.fkSide)) &&
+      (r.associativePosition === undefined ||
+        (r.associativePosition !== null &&
+          Number.isFinite(r.associativePosition.x) &&
+          Number.isFinite(r.associativePosition.y))) &&
       [r.sourceHandle, r.targetHandle].every(
         (h) =>
           h === undefined || ["left", "right", "top", "bottom"].includes(h),

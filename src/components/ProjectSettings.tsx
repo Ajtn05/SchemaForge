@@ -7,6 +7,9 @@ export default function ProjectSettings({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState(schema.name);
   const [description, setDescription] = useState(schema.description);
   const [engine, setEngine] = useState<DatabaseEngine>(projectEngine(schema));
+  const [crowFoot, setCrowFoot] = useState(
+    schema.relationshipNotation === "crow-foot",
+  );
   return (
     <form
       onSubmit={(e) => {
@@ -15,6 +18,7 @@ export default function ProjectSettings({ onClose }: { onClose: () => void }) {
           s.name = name.trim() || s.name;
           s.description = description;
           s.engine = engine;
+          s.relationshipNotation = crowFoot ? "crow-foot" : "cardinality";
         });
         notify("Project settings saved.");
         onClose();
@@ -58,6 +62,25 @@ export default function ProjectSettings({ onClose }: { onClose: () => void }) {
             ? "Generate PostgreSQL SQL with quoted identifiers and identity columns. Date-time attributes map to TIMESTAMP without time zone."
             : "Generate MySQL 8.0.16+ SQL with InnoDB and utf8mb4."}
       </p>
+      <div className="settings-diagram">
+        <span className="field-label">DIAGRAM</span>
+        <div className="toggle-row">
+          <span>
+            Use crow’s-foot notation
+            <small>Replace 1:1, 1:N, and M:N labels with relationship symbols.</small>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={crowFoot}
+            aria-label="Use crow’s-foot notation"
+            className={`toggle ${crowFoot ? "on" : ""}`}
+            onClick={() => setCrowFoot(!crowFoot)}
+          >
+            <span />
+          </button>
+        </div>
+      </div>
       <div className="modal-actions">
         <button className="button" type="button" onClick={onClose}>
           Cancel

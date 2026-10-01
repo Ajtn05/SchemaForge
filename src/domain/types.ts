@@ -47,10 +47,12 @@ export interface Relationship {
   attributes: Attribute[];
   sourceHandle?: string;
   targetHandle?: string;
+  associativePosition?: Entity["position"];
 }
 export interface ConceptualSchema {
   version: 1;
   engine?: DatabaseEngine;
+  relationshipNotation?: "cardinality" | "crow-foot";
   name: string;
   description: string;
   entities: Entity[];
